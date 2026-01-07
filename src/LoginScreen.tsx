@@ -48,7 +48,7 @@ const LoginScreen = () => {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
 
-  const API_BASE = "https://backend-besafe.onrender.com/api";
+  const API_BASE = "https://taxi.webase.co.in/api";
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
@@ -246,7 +246,8 @@ const LoginScreen = () => {
             ['driverId', driver.driverId],
             ['driverName', driver.name],
             ['vehicleNumber', driver.vehicleNumber || ''],
-            ['vehicleType', driver.vehicleType || 'taxi'] // Important for logic
+            ['vehicleType', driver.vehicleType || 'taxi'],
+            ['walletBalance', driver.wallet.toString()] // Important for logic
           ]);
 
           await AsyncStorage.removeItem('verificationId');
