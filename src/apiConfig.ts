@@ -1,6 +1,6 @@
 // config/apiConfig.js (or wherever this file is)
 
-const NGROK_BASE_URL = 'https://27a41765479f.ngrok-free.app';
+const NGROK_BASE_URL = 'https://383797b4d7ae.ngrok-free.app';
 
 // API & Socket URLs (ngrok only)
 export const API_BASE = `${NGROK_BASE_URL}/api`;

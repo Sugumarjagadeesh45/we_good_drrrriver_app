@@ -2367,6 +2367,22 @@ const handleBillModalClose = useCallback(() => {
   
   return (
     <View style={styles.container}>
+      {/* Top-left menu icon */}
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => navigation.navigate('Menu')}
+      >
+        <MaterialIcons name="menu" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Top-right logout button */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <MaterialIcons name="logout" size={24} color="#fff" />
+      </TouchableOpacity>
+
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -2509,7 +2525,7 @@ const handleBillModalClose = useCallback(() => {
         </View>
       )}
       
-      {/* Online/Offline Toggle Button - MOVED TO BOTTOM RIGHT */}
+      {/* Center ONLINE | OFFLINE button */}
       {!ride && (
         <View style={styles.onlineToggleContainer}>
           <TouchableOpacity
@@ -2600,17 +2616,6 @@ const handleBillModalClose = useCallback(() => {
             <Text style={styles.btnText}>Reject</Text>
           </TouchableOpacity>
         </View>
-      )}
-      
-      {/* Logout Button */}
-      {!ride && (
-        <TouchableOpacity
-          style={[styles.button, styles.logoutButton]}
-          onPress={handleLogout}
-        >
-          <MaterialIcons name="logout" size={20} color="#fff" />
-          <Text style={styles.btnText}>Logout</Text>
-        </TouchableOpacity>
       )}
       
       {/* Offline Verification Modal */}
@@ -3031,23 +3036,59 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 2,
   },
-  // Online/Offline Toggle Styles - MOVED TO BOTTOM RIGHT
+  // Top Navigation Buttons
+  menuButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#2ecc71',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  logoutButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#e74c3c',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  // Online/Offline Toggle Styles
   onlineToggleContainer: {
     position: "absolute",
-    top: 120,
-    right: 30,
-    left: 'auto',
-    zIndex: 11,
+    top: 45,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 5,
   },
   onlineToggleButton: {
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 30,
     elevation: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
-    minWidth: 330,
+    width: 180,
   },
   onlineButton: {
     backgroundColor: "#4caf50",
@@ -3167,15 +3208,6 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     backgroundColor: "#ff9800",
-    position: "absolute",
-    bottom: 20,
-    left: 16,
-    right: 16,
-    elevation: 25, // ✅ INCREASED from 3
-    zIndex: 100,  // ✅ ADDED for iOS priority
-  },
-  logoutButton: {
-    backgroundColor: "#dc3545",
     position: "absolute",
     bottom: 20,
     left: 16,
@@ -3484,4 +3516,3 @@ const styles = StyleSheet.create({
     color: '#333',
   },
 });
-

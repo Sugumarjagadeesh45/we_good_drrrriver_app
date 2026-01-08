@@ -2406,26 +2406,21 @@ const handleBillModalClose = useCallback(() => {
   
   return (
     <View style={styles.container}>
-      {/* Professional Header with Menu and Logout */}
-      {!ride && (
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => navigation.navigate('Menu')}
-          >
-            <MaterialIcons name="menu" size={28} color="#fff" />
-          </TouchableOpacity>
+      {/* Top-left menu icon */}
+      <TouchableOpacity
+        style={styles.menuButton}
+        onPress={() => navigation.navigate('Menu')}
+      >
+        <MaterialIcons name="menu" size={28} color="#fff" />
+      </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>EazyGo Driver</Text>
-
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={handleLogout}
-          >
-            <MaterialIcons name="logout" size={26} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Top-right logout button */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={handleLogout}
+      >
+        <MaterialIcons name="logout" size={24} color="#fff" />
+      </TouchableOpacity>
 
       <MapView
         ref={mapRef}
@@ -2569,12 +2564,12 @@ const handleBillModalClose = useCallback(() => {
         </View>
       )}
       
-      {/* Online/Offline Toggle Button - CENTER POSITION */}
+      {/* Center ONLINE | OFFLINE button */}
       {!ride && (
-        <View style={styles.centerToggleContainer}>
+        <View style={styles.onlineToggleContainer}>
           <TouchableOpacity
             style={[
-              styles.centerToggleButton,
+              styles.onlineToggleButton,
               isDriverOnline ? styles.onlineButton : styles.offlineButton
             ]}
             onPress={toggleOnlineStatus}
@@ -2585,14 +2580,13 @@ const handleBillModalClose = useCallback(() => {
                 { backgroundColor: isDriverOnline ? "#4caf50" : "#f44336" }
               ]} />
               <Text style={styles.toggleButtonText}>
-                {isDriverOnline ? "ONLINE" : "OFFLINE"}
+                {isDriverOnline ? "🟢 ONLINE" : "🔴 OFFLINE"}
               </Text>
             </View>
             {backgroundTrackingActive && (
-              <Text style={styles.trackingText}>📍 Live tracking</Text>
+              <Text style={styles.trackingText}>📍 Live tracking active</Text>
             )}
           </TouchableOpacity>
-          <Text style={styles.walletBalanceText}>Wallet: ₹{walletBalance.toFixed(2)}</Text>
         </View>
       )}
       
@@ -3519,75 +3513,59 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  // Professional Header Styles
-  headerContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: Platform.OS === "ios" ? 100 : 70,
-    backgroundColor: "rgba(0, 0, 0, 0.85)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 45 : 15,
-    zIndex: 1000,
-    elevation: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  headerIconButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 3,
-    shadowColor: "#000",
+  // Top Navigation Buttons
+  menuButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#2ecc71',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
+    zIndex: 10,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.5,
+  logoutButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#e74c3c',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 10,
   },
-  // Center Toggle Button Styles
-  centerToggleContainer: {
+  // Online/Offline Toggle Styles
+  onlineToggleContainer: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 120 : 90,
+    top: 45,
     left: 0,
     right: 0,
     alignItems: "center",
-    zIndex: 999,
+    zIndex: 5,
   },
-  centerToggleButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 32,
+  onlineToggleButton: {
+    padding: 14,
     borderRadius: 30,
-    elevation: 8,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    minWidth: 180,
-  },
-  walletBalanceText: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#fff",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    overflow: "hidden",
+    shadowRadius: 6,
+    width: 180,
   },
   // Offline Verification Modal Styles
   verificationBox: {
