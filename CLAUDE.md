@@ -98,14 +98,15 @@ await stopBackgroundService();
 ### API Configuration
 
 **Environment Setup** ([src/apiConfig.ts](src/apiConfig.ts))
-- Configured to use ngrok tunnel for development
+- Configured to use live production server
 - Centralized `API_BASE` and `SOCKET_URL` exports
-- Both API and Socket URLs derived from `NGROK_BASE_URL`
+- Both API and Socket URLs derived from `LIVE_SERVER_URL`
+- Current server: `https://backend-besafe.onrender.com`
 
-**Update the ngrok URL when tunnel changes:**
+**To change the server URL:**
 ```typescript
 // src/apiConfig.ts
-const NGROK_BASE_URL = 'https://your-new-ngrok-url.ngrok-free.app';
+const LIVE_SERVER_URL = 'https://your-server-url.com';
 ```
 
 **API Client** ([utils/api.ts](utils/api.ts))
@@ -210,20 +211,22 @@ const NGROK_BASE_URL = 'https://your-new-ngrok-url.ngrok-free.app';
 ## Testing Strategy
 
 When testing ride flows:
-1. Ensure ngrok URL is updated in apiConfig.ts
-2. Start Metro bundler first
-3. Check socket connection logs in console
-4. Verify background service starts when going online
-5. Test notification permissions on physical devices (not emulators)
-6. Monitor AsyncStorage for auth persistence
+1. Ensure live server URL is correctly configured in apiConfig.ts
+2. Verify backend server is running and accessible
+3. Start Metro bundler first
+4. Check socket connection logs in console
+5. Verify background service starts when going online
+6. Test notification permissions on physical devices (not emulators)
+7. Monitor AsyncStorage for auth persistence
 
 ## Common Debugging
 
 **Socket not connecting:**
-- Verify `NGROK_BASE_URL` in apiConfig.ts is current and accessible
-- Ensure backend server is running
-- Check `secure: true` setting in socket.ts matches HTTPS URLs
+- Verify `LIVE_SERVER_URL` in apiConfig.ts is correct and accessible
+- Ensure backend server is running and reachable
+- Check `secure: true` setting in socket.ts (required for HTTPS)
 - Review socket connection logs in console
+- Test server connectivity with a browser or curl
 
 **Background location not working:**
 - Request location permissions (Always on Android)

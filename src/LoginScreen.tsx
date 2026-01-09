@@ -1,6 +1,4 @@
 
-//.  https://taxi.webase.co.in
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -26,7 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { RootStackParamList } from '../App';
-
+import { API_BASE } from './apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,12 +41,9 @@ const LoginScreen = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
-  
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-
-
-  const API_BASE = "https://taxi.webase.co.in/api";
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
