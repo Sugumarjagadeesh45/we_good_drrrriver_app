@@ -1,5 +1,5 @@
 // src/RejectRideScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,13 +33,13 @@ const RejectRideScreen: React.FC<RejectRideScreenProps> = ({ route, navigation }
     'Feeling unwell',
   ];
 
-  useState(() => {
+  useEffect(() => {
     const loadToken = async () => {
       const savedToken = await AsyncStorage.getItem('authToken');
       setToken(savedToken);
     };
     loadToken();
-  });
+  }, []);
 
 // D:\eazyGo\driverapp-main\driverapp-main\src\RejectRideScreen.tsx
 

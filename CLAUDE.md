@@ -97,16 +97,15 @@ await stopBackgroundService();
 
 ### API Configuration
 
-**Environment Switching** ([src/apiConfig.ts](src/apiConfig.ts))
-- Toggle `IS_DEVELOPMENT` flag to switch between local/production servers
-- Platform-specific URLs for Android/iOS
-- Ngrok tunnel support for local development
+**Environment Setup** ([src/apiConfig.ts](src/apiConfig.ts))
+- Configured to use ngrok tunnel for development
 - Centralized `API_BASE` and `SOCKET_URL` exports
+- Both API and Socket URLs derived from `NGROK_BASE_URL`
 
 **Update the ngrok URL when tunnel changes:**
 ```typescript
 // src/apiConfig.ts
-const NGROK_URL = 'https://your-new-ngrok-url.ngrok-free.app';
+const NGROK_BASE_URL = 'https://your-new-ngrok-url.ngrok-free.app';
 ```
 
 **API Client** ([utils/api.ts](utils/api.ts))
@@ -185,7 +184,7 @@ const NGROK_URL = 'https://your-new-ngrok-url.ngrok-free.app';
 ## Android Configuration
 
 - **Package**: `com.webase.eazygodriver`
-- **Min SDK**: Check [android/build.gradle](android/build.gradle)
+- **Min SDK**: 24, Target SDK: 35 ([android/build.gradle](android/build.gradle))
 - **Firebase**: Google Services plugin enabled ([android/app/build.gradle:5](android/app/build.gradle#L5))
 - **ProGuard**: Enabled for release builds
 - **Vector Icons**: Font gradle script applied
@@ -221,10 +220,10 @@ When testing ride flows:
 ## Common Debugging
 
 **Socket not connecting:**
-- Check `IS_DEVELOPMENT` flag in apiConfig.ts
-- Verify ngrok URL is current and accessible
+- Verify `NGROK_BASE_URL` in apiConfig.ts is current and accessible
 - Ensure backend server is running
-- Check `secure: true` setting matches HTTPS URLs
+- Check `secure: true` setting in socket.ts matches HTTPS URLs
+- Review socket connection logs in console
 
 **Background location not working:**
 - Request location permissions (Always on Android)
