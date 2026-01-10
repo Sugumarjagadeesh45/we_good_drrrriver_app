@@ -874,7 +874,72 @@ const toggleOnlineStatus = useCallback(async () => {
 
 
 
+// Add this function to fetch and update vehicle type from server
+const fetchAndUpdateVehicleType = useCallback(async () => {
+  try {
+    console.log('🔄 Fetching driver vehicle type from server...');
+    
+    const response = await fetch(`${API_BASE}/drivers/get-vehicle-type/${driverId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await AsyncStorage.getItem("authToken")}`,
+      },
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.vehicleType) {
+        const normalizedType = result.vehicleType.toLowerCase();
+        console.log(`✅ Server vehicle type: ${normalizedType}`);
+        
+        // Update both state and AsyncStorage
+        setDriverVehicleType(normalizedType);
+        await AsyncStorage.setItem("driverVehicleType", normalizedType);
+        
+        // Re-register with socket with correct vehicle type
+        if (socket && socket.connected && location && isDriverOnline) {
+          socket.emit("registerDriver", {
+            driverId,
+            driverName,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            vehicleType: normalizedType,
+          });
+          console.log(`✅ Re-registered driver with vehicle type: ${normalizedType}`);
+        }
+        
+        return normalizedType;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error fetching vehicle type:', error);
+  }
+  return null;
+}, [driverId, driverName, location, isDriverOnline, socket]);
 
+// Add this useEffect to load vehicle type on mount
+useEffect(() => {
+  const loadVehicleType = async () => {
+    if (driverId) {
+      // First try to get from AsyncStorage
+      const storedType = await AsyncStorage.getItem("driverVehicleType");
+      
+      if (storedType) {
+        const normalizedType = storedType.toLowerCase();
+        setDriverVehicleType(normalizedType);
+        console.log(`🚗 Vehicle type from storage: ${normalizedType}`);
+      } else {
+        // Fetch from server if not in storage
+        await fetchAndUpdateVehicleType();
+      }
+    }
+  };
+  
+  if (driverId) {
+    loadVehicleType();
+  }
+}, [driverId, fetchAndUpdateVehicleType]);
 
   // Load driver info and verify token on mount
   useEffect(() => {
@@ -896,18 +961,15 @@ const loadDriverInfo = async () => {
       setDriverName(storedDriverName);
       console.log("✅ Token found, skipping verification");
       
-      // Store vehicle type if available
-      if (storedVehicleType) {
-        console.log(`🚗 Driver vehicle type: ${storedVehicleType}`);
-        const normalizedType = storedVehicleType.toLowerCase();
-      console.log(`🚗 Driver vehicle type loaded: ${normalizedType}`);
-      setDriverVehicleType(normalizedType);
-      await AsyncStorage.setItem("driverVehicleType", normalizedType);
-   
-      } else {
-        // ✅ FIXED: REMOVED DEFAULT TO TAXI
-        console.warn("⚠️ No vehicle type found in storage. Waiting for update.");
-        // Do NOT set to taxi. Do NOT update AsyncStorage.
+
+  if (storedVehicleType) {
+    console.log(`🚗 Driver vehicle type: ${storedVehicleType}`);
+    const normalizedType = storedVehicleType.toLowerCase();
+    setDriverVehicleType(normalizedType);
+    await AsyncStorage.setItem("driverVehicleType", normalizedType);
+  } else {
+    // ✅ FIXED: REMOVED DEFAULT TO TAXI
+    console.warn("⚠️ No vehicle type found in storage. Waiting for update.");
       }
       
       // Restore online status if it was online before
@@ -1203,6 +1265,77 @@ const handleConnect = useCallback(() => {
   }
 }, [isMounted, location, driverId, isDriverOnline, driverVehicleType, driverName, driverStatus, startLocationUpdates, socket]);
 
+
+// In DriverScreen component - add this useEffect
+useEffect(() => {
+  if (!socket) return;
+  
+  const handleCompleteUserData = (data: any) => {
+    if (data.rideId === ride?.rideId) {
+      console.log("✅ Received complete user data:", data.userData);
+      
+      // Extract passenger data
+      const passengerData = {
+        name: data.userData.name,
+        mobile: data.userData.mobile,
+        location: data.userData.location,
+        userId: data.userData.userId,
+        rating: 4.8
+      };
+      
+      setUserData(passengerData);
+      
+      // Show rider details automatically
+      setRiderDetailsVisible(true);
+      slideAnim.setValue(0);
+      fadeAnim.setValue(1);
+    }
+  };
+  
+  // Listen for regular ride acceptance
+  const handleRideAcceptedResponse = (response: any) => {
+    if (response.success && response.userData) {
+      console.log("✅ Ride accepted with user data");
+      
+      // Extract from response
+      const passengerData = {
+        name: response.userData.name,
+        mobile: response.userData.mobile,
+        location: response.userData.location,
+        userId: response.userData.userId,
+        rating: 4.8
+      };
+      
+      setUserData(passengerData);
+      setRiderDetailsVisible(true);
+      slideAnim.setValue(0);
+      fadeAnim.setValue(1);
+    }
+  };
+  
+  socket.on("completeUserData", handleCompleteUserData);
+  
+  // Add retry mechanism for user data
+  const retryUserDataFetch = () => {
+    if (ride && !userData && rideStatus === "accepted") {
+      console.log("🔄 Retrying user data fetch for ride:", ride.rideId);
+      socket.emit("getUserDataForDriver", { rideId: ride.rideId });
+    }
+  };
+  
+  // Set up retry every 2 seconds for 10 seconds
+  if (ride && !userData && rideStatus === "accepted") {
+    const retryInterval = setInterval(retryUserDataFetch, 2000);
+    const timeout = setTimeout(() => {
+      clearInterval(retryInterval);
+    }, 10000);
+    
+    return () => {
+      clearInterval(retryInterval);
+      clearTimeout(timeout);
+    };
+  }
+}, [socket, ride, rideStatus, userData]);
 
 
   const acceptRide = async (rideId?: string) => {

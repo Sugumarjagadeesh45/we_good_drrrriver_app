@@ -1,8 +1,6 @@
 import { io } from "socket.io-client";
 import { SOCKET_URL } from "./apiConfig";
 
-console.log("🔌 Initializing Socket at:", SOCKET_URL);
-
 const socket = io(SOCKET_URL, {
   transports: ["websocket"],
   autoConnect: false,
@@ -13,6 +11,21 @@ const socket = io(SOCKET_URL, {
   forceNew: true,
   secure: true, // ✅ Set to true for HTTPS connections
 });
+
+// Monitor connection events in Development
+if (__DEV__) {
+  socket.on("connect", () => {
+    console.log("✅ Socket Connected:", socket.id);
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("❌ Socket Connection Error:", err.message);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log("⚠️ Socket Disconnected:", reason);
+  });
+}
 
 export const connectSocket = () => {
   if (!socket.connected) {
