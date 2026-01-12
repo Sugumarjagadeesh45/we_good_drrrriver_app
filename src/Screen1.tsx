@@ -304,52 +304,64 @@ const DriverScreen = ({ route, navigation }: { route: any; navigation: any }) =>
       fullRouteCoords, visibleRouteCoords, userLocation, lastCoord, riderDetailsVisible]);
 
       
-      const restoreRideState = useCallback(async () => {
+const restoreRideState = useCallback(async () => {
   try {
     const savedState = await AsyncStorage.getItem('rideState');
+
     if (savedState) {
       const rideState = JSON.parse(savedState);
-      
-      // ✅ FIX: Check if ride was completed before refresh
+
+      // ✅ FIX: If ride already completed, clear and exit
       if (rideState.rideStatus === 'completed') {
         console.log('🔄 Found completed ride from previous session, clearing...');
         await clearRideState();
         return false;
       }
-      
-      // Only restore if there's an active ride
-      if (rideState.ride && (rideState.rideStatus === 'accepted' || rideState.rideStatus === 'started')) {
+
+      // ✅ Restore only ACTIVE rides
+      if (
+        rideState.ride &&
+        (rideState.rideStatus === 'accepted' ||
+          rideState.rideStatus === 'started')
+      ) {
         console.log('🔄 Restoring ride state from AsyncStorage');
-        
+
+        // --- Core ride data ---
         setRide(rideState.ride);
-        setUserData(rideState.userData);
+        setUserData(rideState.userData); // ✅ Passenger data
         setRideStatus(rideState.rideStatus);
         setDriverStatus(rideState.driverStatus);
         setTravelledKm(rideState.travelledKm || 0);
+
+        // --- OTP & distance ---
         distanceSinceOtp.current = rideState.distanceSinceOtp || 0;
         lastLocationBeforeOtp.current = rideState.lastLocationBeforeOtp;
         setOtpVerificationLocation(rideState.otpVerificationLocation);
+
+        // --- Route & map ---
         setFullRouteCoords(rideState.fullRouteCoords || []);
         setVisibleRouteCoords(rideState.visibleRouteCoords || []);
         setUserLocation(rideState.userLocation);
         setLastCoord(rideState.lastCoord);
-        
-        // Restore UI state - DEFAULT TO MAXIMIZED
-        const shouldShowMaximized = rideState.riderDetailsVisible !== false;
-        setRiderDetailsVisible(shouldShowMaximized);
-        
-        if (shouldShowMaximized) {
-          slideAnim.setValue(0);
+
+        // ✅ FORCE SHOW RIDER DETAILS IF PASSENGER DATA EXISTS
+        if (rideState.userData) {
+          setRiderDetailsVisible(true);
+          slideAnim.setValue(0);   // maximized
           fadeAnim.setValue(1);
+          console.log('✅ Passenger data restored:', rideState.userData);
         } else {
+          // fallback (should not normally happen)
+          setRiderDetailsVisible(false);
           slideAnim.setValue(400);
           fadeAnim.setValue(0);
         }
-        
+
         console.log('✅ Ride state restored successfully');
         return true;
       }
     }
+
     return false;
   } catch (error) {
     console.error('❌ Error restoring ride state:', error);
@@ -644,6 +656,7 @@ const DriverScreen = ({ route, navigation }: { route: any; navigation: any }) =>
 
   
 
+
 const handleNotificationRideRequest = useCallback(async (data: any) => {
   if (!isMounted.current || !data?.rideId || !isDriverOnline) return;
 
@@ -660,6 +673,7 @@ const handleNotificationRideRequest = useCallback(async (data: any) => {
       console.log(`🚫 Ignoring notification: Driver is ${myDriverType}, ride requires ${requestVehicleType}`);
       return;
   }
+  
   // Use the same logic as the socket ride request handler
   try {
     let pickupLocation, dropLocation;
@@ -702,8 +716,33 @@ const handleNotificationRideRequest = useCallback(async (data: any) => {
       userMobile: data.userMobile || "N/A",
     };
     
+    // ✅ SET RIDE FIRST
     setRide(rideData);
     setRideStatus("onTheWay");
+    
+    // ✅ CRITICAL: SET PASSENGER DATA IMMEDIATELY FROM RIDE DATA
+    const passengerData: UserDataType = {
+      name: rideData.userName || "Passenger",
+      mobile: rideData.userMobile || "N/A",
+      location: rideData.pickup,
+      userId: rideData.rideId,
+      rating: 4.8,
+    };
+    
+    setUserData(passengerData);
+    // ✅ FIXED: Show actual values, not just "Object"
+    console.log("✅ Passenger data set from notification:", {
+      name: passengerData.name,
+      mobile: passengerData.mobile,
+      location: passengerData.location,
+      userId: passengerData.userId,
+      rating: passengerData.rating
+    });
+    
+    // ✅ SHOW RIDER DETAILS IMMEDIATELY
+    setRiderDetailsVisible(true);
+    slideAnim.setValue(0);
+    fadeAnim.setValue(1);
     
     Alert.alert(
       "🚖 New Ride Request!",
@@ -726,9 +765,6 @@ const handleNotificationRideRequest = useCallback(async (data: any) => {
     Alert.alert("Error", "Could not process ride request. Please try again.");
   }
 }, [isDriverOnline, driverVehicleType]);
-
-
-
 
 
 
@@ -1271,173 +1307,164 @@ useEffect(() => {
   if (!socket) return;
   
   const handleCompleteUserData = (data: any) => {
+    console.log("📡 Received complete user data from socket:", data);
+    
     if (data.rideId === ride?.rideId) {
-      console.log("✅ Received complete user data:", data.userData);
-      
-      // Extract passenger data
-      const passengerData = {
-        name: data.userData.name,
-        mobile: data.userData.mobile,
-        location: data.userData.location,
-        userId: data.userData.userId,
+      const passengerData: UserDataType = {
+        name: data.userData?.name || userData?.name || "Passenger",
+        mobile: data.userData?.mobile || userData?.mobile || "N/A",
+        location: data.userData?.location || ride?.pickup,
+        userId: data.userId || ride?.rideId,
         rating: 4.8
       };
       
+      console.log("✅ Setting passenger data from socket:", passengerData);
       setUserData(passengerData);
       
-      // Show rider details automatically
-      setRiderDetailsVisible(true);
-      slideAnim.setValue(0);
-      fadeAnim.setValue(1);
-    }
-  };
-  
-  // Listen for regular ride acceptance
-  const handleRideAcceptedResponse = (response: any) => {
-    if (response.success && response.userData) {
-      console.log("✅ Ride accepted with user data");
-      
-      // Extract from response
-      const passengerData = {
-        name: response.userData.name,
-        mobile: response.userData.mobile,
-        location: response.userData.location,
-        userId: response.userData.userId,
-        rating: 4.8
-      };
-      
-      setUserData(passengerData);
-      setRiderDetailsVisible(true);
-      slideAnim.setValue(0);
-      fadeAnim.setValue(1);
+      // Force show rider details
+      if (!riderDetailsVisible) {
+        setRiderDetailsVisible(true);
+        slideAnim.setValue(0);
+        fadeAnim.setValue(1);
+      }
     }
   };
   
   socket.on("completeUserData", handleCompleteUserData);
   
-  // Add retry mechanism for user data
-  const retryUserDataFetch = () => {
-    if (ride && !userData && rideStatus === "accepted") {
-      console.log("🔄 Retrying user data fetch for ride:", ride.rideId);
-      socket.emit("getUserDataForDriver", { rideId: ride.rideId });
-    }
+  return () => {
+    socket.off("completeUserData", handleCompleteUserData);
   };
-  
-  // Set up retry every 2 seconds for 10 seconds
-  if (ride && !userData && rideStatus === "accepted") {
-    const retryInterval = setInterval(retryUserDataFetch, 2000);
-    const timeout = setTimeout(() => {
-      clearInterval(retryInterval);
-    }, 10000);
-    
-    return () => {
-      clearInterval(retryInterval);
-      clearTimeout(timeout);
-    };
+}, [socket, ride, userData, riderDetailsVisible]);
+
+
+
+const acceptRide = async (rideId?: string) => {
+  const currentRideId = rideId || ride?.rideId;
+  if (!currentRideId) {
+    Alert.alert("Error", "No ride ID available. Please try again.");
+    return;
   }
-}, [socket, ride, rideStatus, userData]);
 
+  if (!driverId) {
+    Alert.alert("Error", "Driver not properly registered.");
+    return;
+  }
 
-  const acceptRide = async (rideId?: string) => {
-    const currentRideId = rideId || ride?.rideId;
-    if (!currentRideId) {
-      Alert.alert("Error", "No ride ID available. Please try again.");
-      return;
-    }
-   
-    if (!driverId) {
-      Alert.alert("Error", "Driver not properly registered.");
-      return;
-    }
-   
-    if (socket && !socket.connected) {
-      Alert.alert("Connection Error", "Reconnecting to server...");
-      socket.connect();
-      socket.once("connect", () => {
-        setTimeout(() => acceptRide(currentRideId), 1000);
+  if (socket && !socket.connected) {
+    Alert.alert("Connection Error", "Reconnecting to server...");
+    socket.connect();
+    socket.once("connect", () => {
+      setTimeout(() => acceptRide(currentRideId), 1000);
+    });
+    return;
+  }
+
+  setIsLoading(true);
+  setRideStatus("accepted");
+  setDriverStatus("onRide");
+
+  // ✅ CRITICAL: Set userData from the existing ride object BEFORE socket call
+  if (ride && !userData) {
+    const passengerData = fetchPassengerData(ride);
+    if (passengerData) {
+      setUserData(passengerData);
+      // ✅ FIXED: Show actual values
+      console.log("✅ Passenger data set from existing ride:", {
+        name: passengerData.name,
+        mobile: passengerData.mobile,
+        userId: passengerData.userId
       });
-      return;
+      
+      // ✅ FORCE SHOW RIDER DETAILS IMMEDIATELY
+      setRiderDetailsVisible(true);
+      slideAnim.setValue(0);
+      fadeAnim.setValue(1);
     }
-   
-    setIsLoading(true);
-    setRideStatus("accepted");
-    setDriverStatus("onRide");
-   
-    if (socket) {
-      socket.emit(
-        "acceptRide",
-        {
-          rideId: currentRideId,
-          driverId: driverId,
-          driverName: driverName,
-        },
-        async (response: any) => {
-          setIsLoading(false);
-          if (!isMounted.current) return;
-         
-          if (response && response.success) {
-            // Use the enhanced passenger data function
+  }
+
+  if (socket) {
+    socket.emit(
+      "acceptRide",
+      {
+        rideId: currentRideId,
+        driverId: driverId,
+        driverName: driverName,
+      },
+      async (response: any) => {
+        setIsLoading(false);
+        if (!isMounted.current) return;
+
+        if (response && response.success) {
+          // ✅ ENSURE PASSENGER DATA IS SET (fallback if not already set)
+          if (!userData) {
             const passengerData = fetchPassengerData(ride!);
             if (passengerData) {
               setUserData(passengerData);
-              console.log("✅ Passenger data set:", passengerData);
+              // ✅ FIXED: Show actual values
+              console.log("✅ Passenger data set from response:", {
+                name: passengerData.name,
+                mobile: passengerData.mobile,
+                userId: passengerData.userId
+              });
             }
-            
-            const initialUserLocation = {
-              latitude: response.pickup.lat,
-              longitude: response.pickup.lng,
-            };
-           
-            setUserLocation(initialUserLocation);
-           
-            // Generate dynamic route from driver to pickup (GREEN ROUTE)
-            if (location) {
-              try {
-                const pickupRoute = await fetchRoute(location, initialUserLocation);
-                if (pickupRoute) {
-                  setRide((prev) => {
-                    if (!prev) return null;
-                    console.log("✅ Driver to pickup route generated with", pickupRoute.length, "points");
-                    return { ...prev, routeCoords: pickupRoute };
-                  });
-                }
-              } catch (error) {
-                console.error("❌ Error generating pickup route:", error);
-              }
-            
-              animateToLocation(initialUserLocation, true);
-            }
-            
-            // DEFAULT TO MAXIMIZED VIEW - Show rider details automatically when ride is accepted
-            setRiderDetailsVisible(true);
-            slideAnim.setValue(0);
-            fadeAnim.setValue(1);
-            
-            // Emit event to notify other drivers that this ride has been taken
-            socket.emit("rideTakenByDriver", {
-              rideId: currentRideId,
-              driverId: driverId,
-              driverName: driverName,
-            });
-            
-            socket.emit("driverAcceptedRide", {
-              rideId: currentRideId,
-              driverId: driverId,
-              userId: response.userId,
-              driverLocation: location,
-            });
-           
-            setTimeout(() => {
-              socket.emit("getUserDataForDriver", { rideId: currentRideId });
-            }, 1000);
-            
-            // Save ride state after accepting
-            saveRideState();
           }
+
+          const initialUserLocation = {
+            latitude: response.pickup.lat,
+            longitude: response.pickup.lng,
+          };
+
+          setUserLocation(initialUserLocation);
+
+          // Generate dynamic route from driver to pickup (GREEN ROUTE)
+          if (location) {
+            try {
+              const pickupRoute = await fetchRoute(location, initialUserLocation);
+              if (pickupRoute) {
+                setRide((prev) => {
+                  if (!prev) return null;
+                  console.log("✅ Driver to pickup route generated with", pickupRoute.length, "points");
+                  return { ...prev, routeCoords: pickupRoute };
+                });
+              }
+            } catch (error) {
+              console.error("❌ Error generating pickup route:", error);
+            }
+
+            animateToLocation(initialUserLocation, true);
+          }
+
+          // DEFAULT TO MAXIMIZED VIEW
+          setRiderDetailsVisible(true);
+          slideAnim.setValue(0);
+          fadeAnim.setValue(1);
+
+          // Emit event to notify other drivers
+          socket.emit("rideTakenByDriver", {
+            rideId: currentRideId,
+            driverId: driverId,
+            driverName: driverName,
+          });
+
+          socket.emit("driverAcceptedRide", {
+            rideId: currentRideId,
+            driverId: driverId,
+            userId: response.userId,
+            driverLocation: location,
+          });
+
+          setTimeout(() => {
+            socket.emit("getUserDataForDriver", { rideId: currentRideId });
+          }, 1000);
+
+          // Save ride state after accepting
+          saveRideState();
         }
-      );
-    }
-  };
+      }
+    );
+  }
+};
   
 
   // Throttled pickup route update
@@ -1957,89 +1984,112 @@ const handleBillModalClose = useCallback(() => {
   };
   
 
+  
+
   const handleRideRequest = useCallback((data: any) => {
   if (!isMounted.current || !data?.rideId || !isDriverOnline) return;
 
   console.log(`🚗 Received ride request for ${data.vehicleType}`);
 
-    // Default to 'taxi' if null, convert BOTH to lowercase for comparison
-    const driverType = (driverVehicleType || "").toLowerCase(); // ✅ FIXED: No default 'taxi'
-    const requestVehicleType = (data.vehicleType || "").toLowerCase();
+  const driverType = (driverVehicleType || "").toLowerCase();
+  const requestVehicleType = (data.vehicleType || "").toLowerCase();
 
-    // ✅ FIX: Case-insensitive comparison
-    if (requestVehicleType && driverType && requestVehicleType !== driverType) {
-      console.log(`🚫 Ignoring ride request: Driver is ${driverType}, ride requires ${requestVehicleType}`);
+  if (requestVehicleType && driverType && requestVehicleType !== driverType) {
+    console.log(`🚫 Ignoring ride request: Driver is ${driverType}, ride requires ${requestVehicleType}`);
+    return;
+  }
+  
+  try {
+    let pickupLocation, dropLocation;
+    
+    try {
+      if (typeof data.pickup === 'string') {
+        pickupLocation = JSON.parse(data.pickup);
+      } else {
+        pickupLocation = data.pickup;
+      }
+      
+      if (typeof data.drop === 'string') {
+        dropLocation = JSON.parse(data.drop);
+      } else {
+        dropLocation = data.drop;
+      }
+    } catch (error) {
+      console.error('Error parsing location data:', error);
       return;
     }
     
-    // Process the ride request
-    try {
-      // Parse pickup and drop locations if they're strings
-      let pickupLocation, dropLocation;
-      
-      try {
-        if (typeof data.pickup === 'string') {
-          pickupLocation = JSON.parse(data.pickup);
-        } else {
-          pickupLocation = data.pickup;
-        }
-        
-        if (typeof data.drop === 'string') {
-          dropLocation = JSON.parse(data.drop);
-        } else {
-          dropLocation = data.drop;
-        }
-      } catch (error) {
-        console.error('Error parsing location data:', error);
-        return;
-      }
-      
-      const rideData: RideType = {
-        rideId: data.rideId,
-        RAID_ID: data.RAID_ID || "N/A",
-        otp: data.otp || "0000",
-        pickup: {
-          latitude: pickupLocation?.lat || pickupLocation?.latitude || 0,
-          longitude: pickupLocation?.lng || pickupLocation?.longitude || 0,
-          address: pickupLocation?.address || "Unknown location",
+    const rideData: RideType = {
+      rideId: data.rideId,
+      RAID_ID: data.RAID_ID || "N/A",
+      otp: data.otp || "0000",
+      pickup: {
+        latitude: pickupLocation?.lat || pickupLocation?.latitude || 0,
+        longitude: pickupLocation?.lng || pickupLocation?.longitude || 0,
+        address: pickupLocation?.address || "Unknown location",
+      },
+      drop: {
+        latitude: dropLocation?.lat || dropLocation?.latitude || 0,
+        longitude: dropLocation?.lng || dropLocation?.longitude || 0,
+        address: dropLocation?.address || "Unknown location",
+      },
+      fare: parseFloat(data.fare) || 0,
+      distance: data.distance || "0 km",
+      vehicleType: data.vehicleType,
+      userName: data.userName || "Customer",
+      userMobile: data.userMobile || "N/A",
+    };
+    
+    // ✅ SET RIDE FIRST
+    setRide(rideData);
+    setRideStatus("onTheWay");
+    
+    // ✅ CRITICAL: SET PASSENGER DATA IMMEDIATELY
+    const passengerData: UserDataType = {
+      name: rideData.userName || "Passenger",
+      mobile: rideData.userMobile || "N/A",
+      location: rideData.pickup,
+      userId: rideData.rideId,
+      rating: 4.8,
+    };
+    
+    setUserData(passengerData);
+    // ✅ FIXED: Show actual values, not just "Object"
+    console.log("✅ Passenger data set from socket:", {
+      name: passengerData.name,
+      mobile: passengerData.mobile,
+      location: passengerData.location,
+      userId: passengerData.userId,
+      rating: passengerData.rating
+    });
+    
+    // ✅ SHOW RIDER DETAILS IMMEDIATELY
+    setRiderDetailsVisible(true);
+    slideAnim.setValue(0);
+    fadeAnim.setValue(1);
+    
+    Alert.alert(
+      `🚖 New ${data.vehicleType?.toUpperCase()} Ride Request!`,
+      `📍 Pickup: ${rideData.pickup.address}\n🎯 Drop: ${rideData.drop.address}\n💰 Fare: ₹${rideData.fare}\n📏 Distance: ${rideData.distance}\n👤 Customer: ${rideData.userName}\n🚗 Vehicle: ${data.vehicleType}`,
+      [
+        {
+          text: "❌ Reject",
+          onPress: () => rejectRide(rideData.rideId),
+          style: "destructive",
         },
-        drop: {
-          latitude: dropLocation?.lat || dropLocation?.latitude || 0,
-          longitude: dropLocation?.lng || dropLocation?.longitude || 0,
-          address: dropLocation?.address || "Unknown location",
+        {
+          text: "✅ Accept",
+          onPress: () => acceptRide(rideData.rideId),
         },
-        fare: parseFloat(data.fare) || 0,
-        distance: data.distance || "0 km",
-        vehicleType: data.vehicleType,
-        userName: data.userName || "Customer",
-        userMobile: data.userMobile || "N/A",
-      };
-      
-      setRide(rideData);
-      setRideStatus("onTheWay");
-      
-      Alert.alert(
-        `🚖 New ${data.vehicleType?.toUpperCase()} Ride Request!`,
-        `📍 Pickup: ${rideData.pickup.address}\n🎯 Drop: ${rideData.drop.address}\n💰 Fare: ₹${rideData.fare}\n📏 Distance: ${rideData.distance}\n👤 Customer: ${rideData.userName}\n🚗 Vehicle: ${data.vehicleType}`,
-        [
-          {
-            text: "❌ Reject",
-            onPress: () => rejectRide(rideData.rideId),
-            style: "destructive",
-          },
-          {
-            text: "✅ Accept",
-            onPress: () => acceptRide(rideData.rideId),
-          },
-        ],
-        { cancelable: false }
-      );
-    } catch (error) {
-      console.error("❌ Error processing ride request:", error);
-      Alert.alert("Error", "Could not process ride request. Please try again.");
-    }
+      ],
+      { cancelable: false }
+    );
+  } catch (error) {
+    console.error("❌ Error processing ride request:", error);
+    Alert.alert("Error", "Could not process ride request. Please try again.");
+  }
 }, [isDriverOnline, driverVehicleType]);
-  
+
   // Show ride taken alert
   const showRideTakenAlertMessage = useCallback(() => {
     setShowRideTakenAlert(true);
@@ -2067,9 +2117,20 @@ const handleBillModalClose = useCallback(() => {
 
   
     // Render professional maximized passenger details
-  const renderMaximizedPassengerDetails = () => {
-    if (!ride || !userData || !riderDetailsVisible) return null;
+const renderMaximizedPassengerDetails = () => {
+  console.log("🔍 Render Maximized Details:", {
+    hasRide: !!ride,
+    hasUserData: !!userData,
+    isVisible: riderDetailsVisible,
+    userName: userData?.name
+  });
+  
+  if (!ride || !userData || !riderDetailsVisible) {
+    console.log("❌ Not rendering: Missing data or hidden");
+    return null;
+  }
 
+  console.log("✅ Rendering passenger details for:", userData.name);
     return (
       <Animated.View 
         style={[
@@ -2083,7 +2144,7 @@ const handleBillModalClose = useCallback(() => {
         {/* Header with Branding and Down Arrow */}
         <View style={styles.maximizedHeader}>
           <View style={styles.brandingContainer}>
-            <Text style={styles.brandingText}>Webase branding</Text>
+            <Text style={styles.brandingText}>Future Tech - ERODE</Text>
           </View>
           <TouchableOpacity onPress={hideRiderDetails} style={styles.minimizeButton}>
             <MaterialIcons name="keyboard-arrow-down" size={28} color="#666" />
@@ -2144,10 +2205,20 @@ const handleBillModalClose = useCallback(() => {
 
 
 
-  // Render minimized booking bar (2 lines as specified)
-  const renderMinimizedBookingBar = () => {
-    if (!ride || !userData || riderDetailsVisible) return null;
-
+const renderMinimizedBookingBar = () => {
+  console.log("🔍 Render Minimized Bar:", {
+    hasRide: !!ride,
+    hasUserData: !!userData,
+    isMaximized: riderDetailsVisible,
+    userName: userData?.name
+  });
+  
+  if (!ride || !userData || riderDetailsVisible) {
+    console.log("❌ Not rendering minimized bar");
+    return null;
+  }
+  
+  console.log("✅ Rendering minimized bar for:", userData.name);
     return (
       <View style={styles.minimizedBookingBarContainer}>
         <View style={styles.minimizedBookingBar}>
