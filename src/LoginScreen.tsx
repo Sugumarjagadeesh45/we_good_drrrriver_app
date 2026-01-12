@@ -24,7 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { RootStackParamList } from '../App';
-import { API_BASE } from './apiConfig';
+// import { API_BASE } from './apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,6 +33,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const auth = getAuth(getApp());
 
 const LoginScreen = () => {
+  const API_BASE = 'https://taxi.webase.co.in/api'
   const [mobileNumber, setMobileNumber] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
